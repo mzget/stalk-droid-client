@@ -1,14 +1,16 @@
-package com.ahoostudio.stalk.droid.stalk;
+package com.ahoostudio.stalk.stalk;
 
 import android.os.AsyncTask;
 import android.util.Log;
 
-import com.ahoostudio.stalk.droid.stalk.events.SimpleListener;
-import com.ahoostudio.stalk.droid.StalkApplication;
-import com.ahoostudio.stalk.droid.dataModel.network.GroupMember;
-import com.ahoostudio.stalk.droid.dataModel.network.RoomType;
+import com.ahoostudio.stalk.stalk.events.SimpleCallback;
+import com.ahoostudio.stalk.stalk.events.SimpleListener;
+import com.ahoostudio.stalk.StalkApplication;
+import com.ahoostudio.stalk.dataModel.network.GroupMember;
+import com.ahoostudio.stalk.dataModel.network.RoomType;
 import com.google.gson.Gson;
 import com.netease.pomelo.DataCallBack;
+import com.netease.pomelo.PomeloClient;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -18,6 +20,8 @@ import org.json.JSONObject;
  */
 public class ServerAPIProvider implements IServerProvider {
     private static ServerAPIProvider instance;
+    private String TAG = getClass().getSimpleName();
+
     public synchronized static ServerAPIProvider getInstance() {
         if(instance == null) {
             instance = new ServerAPIProvider();
@@ -217,25 +221,28 @@ public class ServerAPIProvider implements IServerProvider {
     }
 
     //<!-- Join and leave chat room.
-    public void JoinChatRoomRequest (String room_id, final SimpleListener<JSONObject> onFinish, final SimpleListener onFail)
+    public void JoinChatRoomRequest (String room_id, final SimpleCallback<String, JSONObject> callback)
             throws  JSONException {
         JSONObject msg = new JSONObject();
         msg.put("token", getServerImplemented().authenData.getString("token"));
         msg.put("rid", room_id);
         msg.put("username", getServerImplemented().username);
-        getServerImplemented().getClient().request("connector.entryHandler.enterRoom", msg, new DataCallBack() {
+
+        PomeloClient client = getServerImplemented().getClient();
+        if(client != null) {
+            client.request("connector.entryHandler.enterRoom", msg, new DataCallBack() {
             @Override
             public void responseData(JSONObject jsonObject) {
-                Log.i(getClass().getSimpleName(), "JoinChatRequest: " + jsonObject);
+                Log.i(TAG, "responseData: enterRoom. " + jsonObject.toString());
                 try {
                     if(jsonObject.getInt("code") == 200) {
-                        if(onFinish != null) {
-                            onFinish.callback(jsonObject);
+                        if(callback != null) {
+                            callback.result(jsonObject);
                         }
                     }
                     else {
-                        if(onFail != null) {
-                            onFail.callback(null);
+                        if(callback != null) {
+                            callback.result(null);
                         }
                     }
                 } catch (JSONException e) {
@@ -243,21 +250,34 @@ public class ServerAPIProvider implements IServerProvider {
                 }
             }
         });
+        }
+        else {
+            callback.error("");
+        }
     }
 
-    public void LeaveChatRoomRequest(String roomId, final SimpleListener<JSONObject> onLeaveRoom) {
+    public void LeaveChatRoomRequest(String roomId, final SimpleCallback<String, JSONObject> callback) {
         JSONObject msg = new JSONObject();
         try {
-            msg.put("token", getServerImplemented().authenData.getString("token"));
+            String accessToken = StalkApplication.getSharedAppData().getString("token", "");
+            msg.put("token", accessToken);
             msg.put("rid", roomId);
             msg.put("username", getServerImplemented().username);
-            getServerImplemented().getClient().request("connector.entryHandler.leaveRoom", msg, new DataCallBack() {
-                @Override
-                public void responseData(JSONObject jsonObject) {
-                    if (onLeaveRoom != null)
-                        onLeaveRoom.callback(jsonObject);
-                }
-            });
+
+            PomeloClient client = getServerImplemented().getClient();
+            if(client != null) {
+                client.request("connector.entryHandler.leaveRoom", msg, new DataCallBack() {
+                    @Override
+                    public void responseData(JSONObject jsonObject) {
+                        if (callback != null)
+                            callback.result(jsonObject);
+                    }
+                });
+            }
+            else  {
+                if(callback != null)
+                callback.error("");
+            }
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -285,20 +305,28 @@ public class ServerAPIProvider implements IServerProvider {
         }
     }
 
-    public void getUnreadMsgOfRoom(String roomId, String lastAccessTime, final SimpleListener<JSONObject> callback) {
+    public void getUnreadMsgOfRoom(String roomId, String lastAccessTime, final SimpleCallback<String, JSONObject> callback) {
         try {
             JSONObject msg = new JSONObject();
             msg.put(ServerImplemented.ACCESS_TOKEN, getServerImplemented().authenData.getString(ServerImplemented.ACCESS_TOKEN));
             msg.put("roomId", roomId);
             msg.put("lastAccessTime", lastAccessTime);
-            getServerImplemented().getClient().request("chat.chatRoomHandler.getUnreadRoomMessage", msg, new DataCallBack() {
-                @Override
-                public void responseData(JSONObject jsonObject) {
-                    if(callback != null) {
-                        callback.callback(jsonObject);
+
+            PomeloClient client = getServerImplemented().getClient();
+            if(client != null) {
+                getServerImplemented().getClient().request("chat.chatRoomHandler.getUnreadRoomMessage", msg, new DataCallBack() {
+                    @Override
+                    public void responseData(JSONObject jsonObject) {
+                        if (callback != null) {
+                            callback.result(jsonObject);
+                        }
                     }
-                }
-            });
+                });
+            }
+            else {
+                if(callback != null)
+                    callback.error("");
+            }
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -628,12 +656,5 @@ public class ServerAPIProvider implements IServerProvider {
     }
 
     //endregion
-
-    private class GetMeTaskAsync extends AsyncTask<Void, Integer, JSONObject> {
-        @Override
-        protected JSONObject doInBackground(Void... params) {
-            return null;
-        }
-    }
 }
 

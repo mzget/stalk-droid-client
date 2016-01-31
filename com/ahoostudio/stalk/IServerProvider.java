@@ -1,4 +1,4 @@
-package com.ahoostudio.stalk.droid.stalk;
+package com.ahoostudio.stalk.stalk;
 
 /**
  * Created by nattapon on 7/16/15 AD.

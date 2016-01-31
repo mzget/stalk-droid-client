@@ -1,12 +1,12 @@
-package com.ahoostudio.stalk.droid.stalk;
+package com.ahoostudio.stalk.stalk;
 
 import android.util.Log;
 
-import com.ahoostudio.stalk.droid.stalk.dataModel.TokenDecodedModel;
-import com.ahoostudio.stalk.droid.stalk.events.AccessTokenListener;
-import com.ahoostudio.stalk.droid.stalk.events.ILoginCallback;
-import com.ahoostudio.stalk.droid.stalk.events.SimpleListener;
-import com.ahoostudio.stalk.droid.StalkApplication;
+import com.ahoostudio.stalk.stalk.dataModel.TokenDecodedModel;
+import com.ahoostudio.stalk.stalk.events.AccessTokenListener;
+import com.ahoostudio.stalk.stalk.events.ILoginCallback;
+import com.ahoostudio.stalk.stalk.events.SimpleListener;
+import com.ahoostudio.stalk.StalkApplication;
 import com.google.gson.Gson;
 import com.netease.pomelo.DataCallBack;
 import com.netease.pomelo.DataEvent;
@@ -22,6 +22,8 @@ import java.util.EventListener;
  * Created by nattapon on 7/15/15 AD.
  */
 public class ServerImplemented {
+    private String TAG = "ServerImplemented";
+
     public interface IConnectionListen extends EventListener{
         void connectionEvent(String event);
     }
@@ -31,10 +33,6 @@ public class ServerImplemented {
         this.connectionListen = listen;
     }
 
-    public synchronized static ServerImplemented getInstance() {
-        return instance;
-    }
-
     private  static ServerImplemented instance;
     private boolean isInit = false;
     public static boolean IsConnected = false;
@@ -42,19 +40,27 @@ public class ServerImplemented {
 
     private PomeloClient client;
     public PomeloClient getClient() {
-        if(client != null)
-            return client;
-        else  {
-            System.err.println("disconnect Event");
-            if(connectionListen != null) {
-                connectionListen.connectionEvent("disconnect");
+        if(StalkApplication.getConnectivityDetector().isConnectingToInternet()) {
+            if(client != null) {
+                return client;
             }
+            else  {
+                Log.e(TAG, "getClient: " + client);
+                System.err.println("disconnect Event");
+                if(connectionListen != null) {
+                    connectionListen.connectionEvent("disconnect");
+                }
 
-            return  new PomeloClient(instance.host, instance.port);
+                return  null;
+            }
+        }
+        else {
+            return null;
         }
     }
-    public boolean isClientWasNull(){
-        return client==null;
+    public boolean isClientDead(){
+        if(client == null) return true;
+        else return  false;
     }
     String host = "";
     int port = 3014;
@@ -64,27 +70,30 @@ public class ServerImplemented {
     public static final String USER_ID = "uid";
     public static final String REGISTRATION_ID = "registrationId";
 
-    public synchronized static  void CreateInstance(String host, String port){
+    public synchronized static ServerImplemented CreateInstance(String host, String port){
         if(instance == null) {
             instance = new ServerImplemented();
             instance.host = host;
             instance.port = Integer.parseInt(port);
             instance.connectSocketServer(instance.host, instance.port);
         }
+
+        return instance;
     }
 
     private void connectSocketServer(String _host, int _port) {
         client = new PomeloClient(_host,_port);
-        client.init();
         client.on("disconnect", new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
-            System.err.println("disconnect Event");
-            if(connectionListen != null) {
-                connectionListen.connectionEvent("disconnect");
-            }
+                System.err.println("disconnect Event: pomelo client will destroy.");
+                client = null;
+                if(connectionListen != null) {
+                    connectionListen.connectionEvent("disconnect");
+                }
             }
         });
+        client.init();
 
         isInit = true;
     }
@@ -97,21 +106,7 @@ public class ServerImplemented {
 
         authenData = null;
         IsConnected = false;
-    }
-
-    public void Logout (String userName)
-    {
-        JSONObject msg = new JSONObject ();
-        try {
-            msg.put("username", userName);
-            if(client != null && IsConnected) {
-                client.inform("connector.entryHandler.logout", msg);
-                IsConnected = false;
-            }
-        }
-        catch (JSONException e) {
-            e.printStackTrace();
-        }
+        instance = null;
     }
 
 
@@ -134,7 +129,7 @@ public class ServerImplemented {
 
                 client.request("gate.gateHandler.queryEntry", msg, new DataCallBack() {
                     public void responseData(JSONObject result) {
-                        Log.i("QueryConnectorServ", result.toString());
+                        Log.d(TAG, "QueryConnectorServ: " + result.toString());
 
                         try {
                             if (result.getInt("code") == 200) {
@@ -150,10 +145,9 @@ public class ServerImplemented {
                         }
                     }
                 });
-            } catch (JSONException e) {
+            }
+            catch (Exception e) {
                 e.printStackTrace();
-            } catch (NullPointerException npe){
-                npe.printStackTrace();
                 callback.onConnectionFail();
             }
         }
@@ -217,14 +211,19 @@ public class ServerImplemented {
     public void TokenAuthen(String tokenBearer, final AccessTokenListener onSuccessCheckToken) {
         JSONObject msg = new JSONObject();
         try {
-            msg.put(ACCESS_TOKEN, tokenBearer);
-            client.request("gate.gateHandler.authenGateway", msg, new DataCallBack() {
-                @Override
-                public void responseData(JSONObject jsonObject) {
-                    OnTokenAuthenticate(jsonObject, onSuccessCheckToken);
-                }
-            });
-        } catch (JSONException e) {
+            if(client != null) {
+                msg.put(ACCESS_TOKEN, tokenBearer);
+                client.request("gate.gateHandler.authenGateway", msg, new DataCallBack() {
+                    @Override
+                    public void responseData(JSONObject jsonObject) {
+                        OnTokenAuthenticate(jsonObject, onSuccessCheckToken);
+                    }
+                });
+            }
+            else {
+                onSuccessCheckToken.onFailToAccess();
+            }
+        } catch (Exception e) {
             e.printStackTrace();
             onSuccessCheckToken.onFailToAccess();
         }
@@ -244,6 +243,21 @@ public class ServerImplemented {
                     onSuccessCheckToken.onTokenRespones(false, null, null);
             }
         } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void Logout (String userName)
+    {
+        JSONObject msg = new JSONObject ();
+        try {
+            msg.put("username", userName);
+            if(client != null && IsConnected) {
+                client.inform("connector.entryHandler.logout", msg);
+                IsConnected = false;
+            }
+        }
+        catch (JSONException e) {
             e.printStackTrace();
         }
     }

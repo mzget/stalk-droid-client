@@ -1,4 +1,4 @@
-package com.ahoostudio.stalk.droid.stalk.dataModel;
+package com.ahoostudio.stalk.stalk.dataModel;
 
 /**
  * Created by nattapon on 7/19/15 AD.

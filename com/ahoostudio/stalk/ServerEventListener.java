@@ -1,5 +1,8 @@
-package com.ahoostudio.stalk.droid.stalk;
+package com.ahoostudio.stalk.stalk;
 
+import android.util.Log;
+
+import com.ahoostudio.stalk.StalkApplication;
 import com.netease.pomelo.DataEvent;
 import com.netease.pomelo.DataListener;
 
@@ -11,15 +14,11 @@ import java.util.List;
  * Created by nattapon on 7/18/15 AD.
  */
 public class ServerEventListener {
-    private static ServerEventListener instance;
-    protected ServerImplemented serverImplemented;
-    public synchronized static ServerEventListener createInstance() {
-        if(instance == null) {
-            instance = new ServerEventListener();
-        }
+    private final String TAG = getClass().getSimpleName();
 
-        return  instance;
-    }
+    protected ServerImplemented getServerImp() {
+        return StalkApplication.getServerImplemented();
+    };
 
     public interface IRTCListener extends EventListener {
         void onVideoCall(DataEvent dataEvent);
@@ -37,9 +36,9 @@ public class ServerEventListener {
         void onEditedGroupName(DataEvent dataEvent);
         void onEditedGroupImage(DataEvent dataEvent);
         void onNewGroupCreated(DataEvent dataEvent);
-
         void onUpdateMemberInfoInProjectBase(DataEvent dataEvent);
 
+        void onUserLogin(DataEvent dataEvent);
         void onUserUpdateImageProfile(DataEvent dataEvent);
         void onUserUpdateProfile(DataEvent dataEvent);
     }
@@ -59,8 +58,6 @@ public class ServerEventListener {
         void onGetProjectBaseGroupsComplete(DataEvent dataEvent);
     }
 
-
-    private boolean isAddedListener =false;
     private List<IRTCListener> webRTCEventListeners = new ArrayList<>();
     public void addRTCListener(IRTCListener listener) {
         if(listener instanceof  IRTCListener) {
@@ -100,6 +97,12 @@ public class ServerEventListener {
         serverListeners.remove(listener);
     }
 
+    public void removeAllListener() {
+        serverListeners.clear();
+        chatListeners.clear();
+        webRTCEventListeners.clear();
+    }
+
     public static final String ON_ADD = "onAdd";
     public static final String ON_LEAVE = "onLeave";
     public static final String ON_CHAT = "onChat";
@@ -124,6 +127,7 @@ public class ServerEventListener {
     public static final String ON_GET_MESSAGES_READERS = "onGetMessagesReaders";
     public static final String ON_USER_UPDATE_IMAGE_PROFILE = "onUserUpdateImgProfile";
     public static final String ON_USER_UPDATE_PROFILE = "onUserUpdateProfile";
+    public static final String ON_USER_LOGIN = "onUserLogin";
 
     //<!-- Frontend server --->
     public static final String ON_GET_ME = "onGetMe";
@@ -134,15 +138,15 @@ public class ServerEventListener {
     public static final String ON_GET_PROJECT_BASE_GROUPS = "onGetProjectBaseGroups";
 
     public ServerEventListener() {
-        serverImplemented = ServerImplemented.getInstance();
+        Log.w(TAG, "ServerEventListener: constructor.");
     }
 
     public void startListener() {
-        if(isAddedListener) return;
-
         //region -- Chat room --
 
-        serverImplemented.getClient().on(ON_ADD, new DataListener() {
+        Log.i(TAG, "startListener:");
+
+        getServerImp().getClient().on(ON_ADD, new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
                 if(chatListeners !=null){
@@ -153,7 +157,7 @@ public class ServerEventListener {
                 }
             }
         });
-        serverImplemented.getClient().on(ON_LEAVE, new DataListener() {
+        getServerImp().getClient().on(ON_LEAVE, new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
                 if(chatListeners != null) {
@@ -164,7 +168,7 @@ public class ServerEventListener {
                 }
             }
         });
-        serverImplemented.getClient().on(ON_CHAT, new DataListener() {
+        getServerImp().getClient().on(ON_CHAT, new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
                 if(chatListeners != null){
@@ -175,7 +179,7 @@ public class ServerEventListener {
                 }
             }
         });
-        serverImplemented.getClient().on(ON_MESSAGE_READ, new DataListener() {
+        getServerImp().getClient().on(ON_MESSAGE_READ, new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
                 if(chatListeners != null) {
@@ -186,7 +190,7 @@ public class ServerEventListener {
                 }
             }
         });
-        serverImplemented.getClient().on(ON_GET_MESSAGES_READERS, new DataListener() {
+        getServerImp().getClient().on(ON_GET_MESSAGES_READERS, new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
                 if(chatListeners != null) {
@@ -202,7 +206,7 @@ public class ServerEventListener {
 
         //region -- WEBRTC --
 
-        serverImplemented.getClient().on(ON_VIDEO_CALL, new DataListener() {
+        getServerImp().getClient().on(ON_VIDEO_CALL, new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
                 if (webRTCEventListeners != null) {
@@ -213,7 +217,7 @@ public class ServerEventListener {
             }
         });
 
-        serverImplemented.getClient().on(ON_VOICE_CALL, new DataListener() {
+        getServerImp().getClient().on(ON_VOICE_CALL, new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
                 if(webRTCEventListeners != null) {
@@ -223,7 +227,7 @@ public class ServerEventListener {
             }
         });
 
-        serverImplemented.getClient().on(ON_HANGUP_CALL, new DataListener() {
+        getServerImp().getClient().on(ON_HANGUP_CALL, new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
                 if(webRTCEventListeners != null) {
@@ -234,7 +238,7 @@ public class ServerEventListener {
             }
         });
 
-        serverImplemented.getClient().on(ON_THE_LINE_IS_BUSY, new DataListener() {
+        getServerImp().getClient().on(ON_THE_LINE_IS_BUSY, new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
                 if(webRTCEventListeners != null) {
@@ -249,7 +253,7 @@ public class ServerEventListener {
 
         //region -- Group and User --
 
-        serverImplemented.getClient().on(ON_CREATE_GROUP_SUCCESS, new DataListener() {
+        getServerImp().getClient().on(ON_CREATE_GROUP_SUCCESS, new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
                 if(serverListeners != null) {
@@ -259,7 +263,7 @@ public class ServerEventListener {
                 }
             }
         });
-        serverImplemented.getClient().on(ON_EDITED_GROUP_MEMBER, new DataListener() {
+        getServerImp().getClient().on(ON_EDITED_GROUP_MEMBER, new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
                 if(serverListeners != null) {
@@ -269,7 +273,7 @@ public class ServerEventListener {
                 }
             }
         });
-        serverImplemented.getClient().on(ON_EDITED_GROUP_NAME, new DataListener() {
+        getServerImp().getClient().on(ON_EDITED_GROUP_NAME, new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
                 if(serverListeners != null) {
@@ -279,7 +283,7 @@ public class ServerEventListener {
                 }
             }
         });
-        serverImplemented.getClient().on(ON_EDITED_GROUP_IMAGE, new DataListener() {
+        getServerImp().getClient().on(ON_EDITED_GROUP_IMAGE, new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
                 if(serverListeners != null) {
@@ -289,7 +293,7 @@ public class ServerEventListener {
                 }
             }
         });
-        serverImplemented.getClient().on(ON_NEW_GROUP_CREATED, new DataListener() {
+        getServerImp().getClient().on(ON_NEW_GROUP_CREATED, new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
                 if(serverListeners != null) {
@@ -299,7 +303,7 @@ public class ServerEventListener {
                 }
             }
         });
-        serverImplemented.getClient().on(ON_UPDATE_MEMBER_INFO_IN_PROJECTBASE, new DataListener() {
+        getServerImp().getClient().on(ON_UPDATE_MEMBER_INFO_IN_PROJECTBASE, new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
                 if(serverListeners != null) {
@@ -310,29 +314,8 @@ public class ServerEventListener {
             }
         });
 
-        serverImplemented.getClient().on(ON_USER_UPDATE_IMAGE_PROFILE, new DataListener() {
-            @Override
-            public void receiveData(DataEvent dataEvent) {
-                if(serverListeners != null) {
-                    for (IServerListener listener: serverListeners) {
-                        listener.onUserUpdateImageProfile(dataEvent);
-                    }
-                }
-            }
-        });
-        serverImplemented.getClient().on(ON_USER_UPDATE_PROFILE, new DataListener() {
-            @Override
-            public void receiveData(DataEvent dataEvent) {
-                if(serverListeners != null) {
-                    for (IServerListener listener: serverListeners) {
-                        listener.onUserUpdateProfile(dataEvent);
-                    }
-                }
-            }
-        });
 
-
-        serverImplemented.getClient().on(ON_ACCESS_ROOMS, new DataListener() {
+        getServerImp().getClient().on(ON_ACCESS_ROOMS, new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
                 if(serverListeners != null) {
@@ -343,7 +326,7 @@ public class ServerEventListener {
             }
         });
 
-        serverImplemented.getClient().on(ON_ADD_ROOM_ACCESS, new DataListener() {
+        getServerImp().getClient().on(ON_ADD_ROOM_ACCESS, new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
                 if(serverListeners != null) {
@@ -354,7 +337,7 @@ public class ServerEventListener {
             }
         });
 
-        serverImplemented.getClient().on(ON_UPDATED_LASTACCESSTIME, new DataListener() {
+        getServerImp().getClient().on(ON_UPDATED_LASTACCESSTIME, new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
                 if(serverListeners != null) {
@@ -365,43 +348,74 @@ public class ServerEventListener {
             }
         });
 
-        //endregion
 
-        isAddedListener = true;
+        getServerImp().getClient().on(ON_USER_LOGIN, new DataListener() {
+            @Override
+            public void receiveData(DataEvent event) {
+                if(serverListeners != null) {
+                    for (IServerListener listener: serverListeners) {
+                        listener.onUserLogin(event);
+                    }
+                }
+            }
+        });
+
+        getServerImp().getClient().on(ON_USER_UPDATE_IMAGE_PROFILE, new DataListener() {
+            @Override
+            public void receiveData(DataEvent dataEvent) {
+                if(serverListeners != null) {
+                    for (IServerListener listener: serverListeners) {
+                        listener.onUserUpdateImageProfile(dataEvent);
+                    }
+                }
+            }
+        });
+        getServerImp().getClient().on(ON_USER_UPDATE_PROFILE, new DataListener() {
+            @Override
+            public void receiveData(DataEvent dataEvent) {
+                if(serverListeners != null) {
+                    for (IServerListener listener: serverListeners) {
+                        listener.onUserUpdateProfile(dataEvent);
+                    }
+                }
+            }
+        });
+
+        //endregion
     }
 
     public void listenFrontendEvents(final IFrontendServerListener listener) {
-        serverImplemented.getClient().on(ON_GET_COMPANY_MEMBERS, new DataListener() {
+        getServerImp().getClient().on(ON_GET_COMPANY_MEMBERS, new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
                 listener.onGetCompanyMemberComplete(dataEvent);
             }
         });
-        serverImplemented.getClient().on(ON_GET_PRIVATE_GROUPS, new DataListener() {
+        getServerImp().getClient().on(ON_GET_PRIVATE_GROUPS, new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
                 listener.onGetPrivateGroupsComplete(dataEvent);
             }
         });
-        serverImplemented.getClient().on(ON_GET_ORGANIZE_GROUPS, new DataListener() {
+        getServerImp().getClient().on(ON_GET_ORGANIZE_GROUPS, new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
                 listener.onGetOrganizeGroupsComplete(dataEvent);
             }
         });
-        serverImplemented.getClient().on(ON_GET_PROJECT_BASE_GROUPS, new DataListener() {
+        getServerImp().getClient().on(ON_GET_PROJECT_BASE_GROUPS, new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
                 listener.onGetProjectBaseGroupsComplete(dataEvent);
             }
         });
-        serverImplemented.getClient().on(ON_GET_ME, new DataListener() {
+        getServerImp().getClient().on(ON_GET_ME, new DataListener() {
                     @Override
                     public void receiveData(DataEvent dataEvent) {
                         listener.onGetMe(dataEvent);
                     }
         });
-        serverImplemented.getClient().on(ON_GET_COMPANY_INFO, new DataListener() {
+        getServerImp().getClient().on(ON_GET_COMPANY_INFO, new DataListener() {
             @Override
             public void receiveData(DataEvent dataEvent) {
                 listener.onGetCompanyInfo(dataEvent);

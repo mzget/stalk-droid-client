@@ -1,4 +1,4 @@
-package com.ahoostudio.stalk.droid.stalk.events;
+package com.ahoostudio.stalk.stalk.events;
 
 import org.json.JSONObject;
 

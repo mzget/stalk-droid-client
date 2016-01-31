@@ -1,6 +1,6 @@
-package com.ahoostudio.stalk.droid.stalk.helper;
+package com.ahoostudio.stalk.stalk.helper;
 
-import com.ahoostudio.stalk.droid.util.StringUtil;
+import com.ahoostudio.stalk.util.StringUtil;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
